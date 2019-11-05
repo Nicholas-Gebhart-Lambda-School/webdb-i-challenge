@@ -24,12 +24,34 @@ router.get("/:id", (req, res) => {
     });
 });
 
-router.post("/", validateName, (req, res) => {
+router.post("/", validateName, checkNumber, (req, res) => {
   const { budget, name } = req.body;
   db.insert({ name: name, budget: Number(budget) }, "id")
     .into("accounts")
     .then(records => {
       res.status(201).json(records);
+    });
+});
+
+router.put("/:id", (req, res) => {
+  const changes = req.body;
+  db("accounts")
+    .where({ id: req.params.id })
+    .update(changes)
+    .then(count => {
+      res.status(200).json(count);
+    })
+    .catch(() => {
+      res.status(500).json({ error: "Failed to update post" });
+    });
+});
+
+router.delete("/:id", (req, res) => {
+  db("accounts")
+    .where({ id: req.params.id })
+    .del()
+    .then(count => {
+      res.status(200).json(count);
     });
 });
 
@@ -41,23 +63,18 @@ function checkNumber(req, res, next) {
 }
 
 function validateName(req, res, next) {
-  const result = db
-    .select("*")
+  db.select("*")
     .from("accounts")
     .where({
       name: req.body.name
     })
-    .then(name => {
-      return name;
+    .first()
+    .then(({ name }) => {
+      name === req.body.name
+        ? res.status(400).json({ err: "name must be unique" })
+        : null;
     });
-
-  result.then(name => {
-    if (name[0].name === req.body.name) {
-      res.status(400).json({ err: "name must be unique" });
-    } else {
-      next();
-    }
-  });
+  next();
 }
 
 module.exports = router;
